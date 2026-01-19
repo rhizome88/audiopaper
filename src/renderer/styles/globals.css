@@ -1,0 +1,445 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+/* PDF Page Container */
+.pdf-page {
+  position: relative;
+  line-height: 1;
+}
+
+.pdf-page canvas {
+  display: block;
+}
+
+/* Text Layer - positioned over canvas */
+.text-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  opacity: 1;
+  line-height: 1;
+}
+
+/* Individual text items in the text layer */
+.pdf-text-item {
+  position: absolute;
+  white-space: pre;
+  color: transparent;
+  pointer-events: auto;
+  cursor: pointer;
+  transform-origin: 0% 0%;
+}
+
+.pdf-text-item:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+  border-radius: 2px;
+}
+
+/* Highlighted sentence - subtle light yellow with extended padding for continuity */
+.pdf-text-item.highlighted {
+  background-color: rgba(253, 224, 71, 0.4);
+  color: transparent;
+  padding-left: 2px;
+  padding-right: 2px;
+  margin-left: -2px;
+  margin-right: -2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pdf-text-item.highlighted {
+    background-color: rgba(253, 224, 71, 0.35);
+  }
+}
+
+/* PDF Container scrollbar */
+.pdf-container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.pdf-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.pdf-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 5px;
+}
+
+.pdf-container::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pdf-container::-webkit-scrollbar-track {
+    background: #2a2a2a;
+  }
+
+  .pdf-container::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+  }
+
+  .pdf-container::-webkit-scrollbar-thumb:hover {
+    background: #5a5a5a;
+  }
+}
+
+/* Markdown Content Styling - Typora-like */
+.markdown-content {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #333;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-content {
+    color: #e0e0e0;
+  }
+}
+
+/* Headers */
+.markdown-content h1 {
+  font-size: 2.25em;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #e0e0e0;
+  line-height: 1.3;
+}
+
+.markdown-content h2 {
+  font-size: 1.75em;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #e0e0e0;
+  line-height: 1.3;
+}
+
+.markdown-content h3 {
+  font-size: 1.4em;
+  font-weight: 600;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  line-height: 1.4;
+}
+
+.markdown-content h4 {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+}
+
+.markdown-content h5,
+.markdown-content h6 {
+  font-size: 1em;
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-content h1,
+  .markdown-content h2 {
+    border-bottom-color: #444;
+  }
+}
+
+/* Paragraphs */
+.markdown-content p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+/* Links */
+.markdown-content a {
+  color: #4183c4;
+  text-decoration: none;
+}
+
+.markdown-content a:hover {
+  text-decoration: underline;
+}
+
+/* Bold and Italic */
+.markdown-content strong {
+  font-weight: 600;
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+/* Lists */
+.markdown-content ul,
+.markdown-content ol {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-left: 2em;
+}
+
+.markdown-content li {
+  margin-bottom: 0.25em;
+}
+
+.markdown-content li > p {
+  margin-bottom: 0.5em;
+}
+
+.markdown-content ul {
+  list-style-type: disc;
+}
+
+.markdown-content ul ul {
+  list-style-type: circle;
+}
+
+.markdown-content ul ul ul {
+  list-style-type: square;
+}
+
+.markdown-content ol {
+  list-style-type: decimal;
+}
+
+/* Blockquotes */
+.markdown-content blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 4px solid #ddd;
+  background-color: #f9f9f9;
+  color: #666;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-content blockquote {
+    border-left-color: #555;
+    background-color: #1a1a1a;
+    color: #aaa;
+  }
+}
+
+/* Code - Inline */
+.markdown-content code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 0.9em;
+  padding: 0.2em 0.4em;
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-content code {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Code - Blocks */
+.markdown-content pre {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 0.9em;
+  padding: 1em;
+  overflow-x: auto;
+  background-color: #f6f8fa;
+  border-radius: 6px;
+  margin: 1em 0;
+  line-height: 1.5;
+}
+
+.markdown-content pre code {
+  padding: 0;
+  background-color: transparent;
+  font-size: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-content pre {
+    background-color: #161b22;
+  }
+}
+
+/* Horizontal Rule */
+.markdown-content hr {
+  height: 0.25em;
+  padding: 0;
+  margin: 1.5em 0;
+  background-color: #e1e4e8;
+  border: 0;
+  border-radius: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-content hr {
+    background-color: #30363d;
+  }
+}
+
+/* Tables */
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.markdown-content th,
+.markdown-content td {
+  padding: 0.75em 1em;
+  border: 1px solid #ddd;
+}
+
+.markdown-content th {
+  font-weight: 600;
+  background-color: #f6f8fa;
+}
+
+.markdown-content tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-content th,
+  .markdown-content td {
+    border-color: #444;
+  }
+
+  .markdown-content th {
+    background-color: #1a1a1a;
+  }
+
+  .markdown-content tr:nth-child(even) {
+    background-color: #161616;
+  }
+}
+
+/* Images */
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em auto;
+  border-radius: 4px;
+}
+
+/* Task Lists */
+.markdown-content input[type='checkbox'] {
+  margin-right: 0.5em;
+}
+
+/* First element no top margin */
+.markdown-content > *:first-child {
+  margin-top: 0;
+}
+
+/* Markdown Sentence Highlighting */
+.markdown-sentences {
+  line-height: 1.8;
+}
+
+.md-sentence {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.md-sentence:hover {
+  background-color: rgba(253, 224, 71, 0.2);
+}
+
+.md-sentence-active {
+  background-color: rgba(253, 224, 71, 0.4);
+  padding: 2px 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .md-sentence-active {
+    background-color: rgba(253, 224, 71, 0.35);
+  }
+}
+
+/* Text Reader Styling */
+.text-reader {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+/* Custom scrollbar for text reader */
+.text-reader::-webkit-scrollbar {
+  width: 8px;
+}
+
+.text-reader::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.text-reader::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.text-reader::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .text-reader::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+  }
+
+  .text-reader::-webkit-scrollbar-thumb:hover {
+    background: #5a5a5a;
+  }
+}
+
+/* Drag and drop area */
+.drop-zone {
+  transition: all 0.2s ease;
+}
+
+.drop-zone.active {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+/* Window dragging area (for frameless window) */
+.app-draggable {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(file:*)",
+      "Bash(wc:*)",
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(npm install:*)",
+      "Bash(powershell -Command \"\\(Get-Content ''C:\\\\Users\\\\retoh\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Dev-audiopaper\\\\tasks\\\\b76c115.output''\\).Count\")",
+      "Bash(soffice --headless --convert-to pdf --outdir:*)",
+      "Bash(powershell:*)",
+      "Bash(copy:*)",
+      "Bash(npm run build:main:*)",
+      "Bash(npm run build:renderer:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
