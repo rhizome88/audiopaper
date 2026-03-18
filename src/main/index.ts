@@ -5,7 +5,7 @@ import { initStore, getWindowState, saveWindowState } from './store';
 
 let mainWindow: BrowserWindow | null = null;
 
-const isDev = process.argv.includes('--dev') || !app.isPackaged;
+const isDev = process.argv.includes('--dev');
 
 function createWindow(): void {
   const windowState = getWindowState();

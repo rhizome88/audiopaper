@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 // Expose protected methods to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -35,6 +35,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setSplitRatio: (ratio: number): Promise<void> =>
     ipcRenderer.invoke('store:setSplitRatio', ratio),
 
+  // Last document persistence
+  getLastDocument: (): Promise<{ filePath: string; sentenceIndex: number } | null> =>
+    ipcRenderer.invoke('store:getLastDocument'),
+
+  setLastDocument: (filePath: string, sentenceIndex: number): Promise<void> =>
+    ipcRenderer.invoke('store:setLastDocument', filePath, sentenceIndex),
+
+  clearLastDocument: (): Promise<void> =>
+    ipcRenderer.invoke('store:clearLastDocument'),
+
+  // Get file path from a dropped File object
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+
   // Platform info
   getPlatform: (): string => process.platform,
 
@@ -54,6 +67,10 @@ export interface ElectronAPI {
   hasApiKey: (service: string) => Promise<boolean>;
   getSplitRatio: () => Promise<number>;
   setSplitRatio: (ratio: number) => Promise<void>;
+  getLastDocument: () => Promise<{ filePath: string; sentenceIndex: number } | null>;
+  setLastDocument: (filePath: string, sentenceIndex: number) => Promise<void>;
+  clearLastDocument: () => Promise<void>;
+  getPathForFile: (file: File) => string;
   getPlatform: () => string;
   isEncryptionAvailable: () => Promise<boolean>;
 }

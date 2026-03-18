@@ -13,6 +13,10 @@ interface StoreSchema {
     openai?: string;
     cloudconvert?: string;
   };
+  lastDocument?: {
+    filePath: string;
+    sentenceIndex: number;
+  };
 }
 
 let store: Store<StoreSchema>;
@@ -90,4 +94,17 @@ export function getApiKey(service: 'openai' | 'cloudconvert'): string | null {
 export function hasApiKey(service: 'openai' | 'cloudconvert'): boolean {
   const keys = store.get('encryptedKeys') || {};
   return !!keys[service];
+}
+
+// Last document persistence
+export function getLastDocument(): StoreSchema['lastDocument'] | null {
+  return store.get('lastDocument') || null;
+}
+
+export function setLastDocument(filePath: string, sentenceIndex: number): void {
+  store.set('lastDocument', { filePath, sentenceIndex });
+}
+
+export function clearLastDocument(): void {
+  store.delete('lastDocument');
 }

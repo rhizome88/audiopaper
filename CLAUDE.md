@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Goal: Self-hosted Speechify alternative for scientific English papers.
 
+**GitHub**: https://github.com/rhizome88/audiopaper
+
 ## Tech Stack
 
 - **Electron** with Vite (fast HMR)
@@ -22,11 +24,13 @@ Goal: Self-hosted Speechify alternative for scientific English papers.
 ## Commands
 
 ```bash
-npm run dev      # Start development (Vite + Electron with hot-reload)
-npm run build    # Production build
-npm start        # Start production build
+npm run dev      # Start development (Vite + Electron with hot-reload, pass --dev flag)
+npm run build    # Production build (renderer + main)
+npm start        # Start production build (electron .)
 npm run package  # Package for distribution (Windows/Mac)
 ```
+
+**Desktop shortcut (macOS)**: `~/Desktop/AudioPaper.command` runs `npm run build && npx electron .` in production mode.
 
 ## Architecture
 
@@ -63,15 +67,19 @@ src/
 
 ## Core Features
 
-1. **Split-Screen Layout** - PDF/Markdown on left, extracted text on right
+1. **Split-Screen Layout** - PDF/Markdown on left, extracted text on right (resizable divider)
 2. **PDF/DOCX/Markdown Upload** - PDF.js for PDFs, CloudConvert for DOCX, custom parser for .md
 3. **Text Extraction** - Extract text from PDF (+ OCR for scanned PDFs)
-4. **Text-to-Speech** - OpenAI TTS API (English)
-5. **Sentence Highlighting** - Current sentence highlighted in both panels
-6. **Word Highlighting** - Current word highlighted (for Markdown)
-7. **Audio Controls** - Play/Pause, Speed, Voice selection, Zoom
-8. **Click Navigation** - Click on text to start reading from that sentence
-9. **Keyboard Shortcuts** - Space (play/pause), Arrow keys (navigate)
+4. **Footnote Filtering** - Automatically skips footer/footnote text (small font in bottom 15% of page)
+5. **Text-to-Speech** - OpenAI TTS API (English)
+6. **Sentence Highlighting** - Current sentence highlighted in both panels
+7. **Word Highlighting** - Smooth gradient wave animation synced to audio duration
+8. **Audio Controls** - Play/Pause, Speed, Voice selection, Zoom
+9. **Click Navigation** - Click on text to start reading from that sentence
+10. **Keyboard Shortcuts** - Space (play/pause), Arrow keys (navigate)
+11. **TTS Cost Tracking** - Displays cumulative API cost in CHF (header)
+12. **Session Persistence** - Saves last document path + sentence position via electron-store; restores on next launch (works with drag&drop, file dialog, and Browse)
+13. **Responsive Text Width** - Right panel text width adjusts based on split ratio
 
 ## Markdown-Rendering
 
@@ -101,6 +109,9 @@ getApiKey(service)                  // Returns decrypted API key
 setApiKey(service, key)             // Stores encrypted API key
 hasApiKey(service)                  // Check if key exists
 getSplitRatio() / setSplitRatio()   // Window split position
+getTtsUsage() / resetTtsUsage()     // TTS character count tracking
+getLastDocument() / setLastDocument(path, idx) / clearLastDocument()  // Session persistence
+getPathForFile(file)                // Get native file path from File object (drag&drop)
 ```
 
 ## API Key Storage
@@ -111,6 +122,11 @@ API keys are stored securely using OS keychain:
 - Linux: Secret Service API / libsecret
 
 First-time setup prompts the user to enter their keys.
+
+## Dev vs Production Mode
+
+- `isDev` is controlled solely by `--dev` CLI flag (not `app.isPackaged`), so `npx electron .` runs in production mode loading built files from `dist/`
+- Dev mode (`npm run dev`) uses Vite dev server at localhost:5173 and opens DevTools
 
 ## Known Issues
 

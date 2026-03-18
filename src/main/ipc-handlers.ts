@@ -2,7 +2,7 @@ import { IpcMain } from 'electron';
 import * as fs from 'fs';
 import { generateSpeech } from './services/tts-service';
 import { convertDocxToPdf } from './services/convert-service';
-import { getApiKey, setApiKey, hasApiKey, getSplitRatio, setSplitRatio } from './store';
+import { getApiKey, setApiKey, hasApiKey, getSplitRatio, setSplitRatio, getLastDocument, setLastDocument, clearLastDocument } from './store';
 
 export function registerIpcHandlers(ipcMain: IpcMain): void {
   // TTS handler
@@ -66,5 +66,18 @@ export function registerIpcHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle('store:setSplitRatio', async (_, ratio: number) => {
     setSplitRatio(ratio);
+  });
+
+  // Last document handlers
+  ipcMain.handle('store:getLastDocument', async () => {
+    return getLastDocument();
+  });
+
+  ipcMain.handle('store:setLastDocument', async (_, filePath: string, sentenceIndex: number) => {
+    setLastDocument(filePath, sentenceIndex);
+  });
+
+  ipcMain.handle('store:clearLastDocument', async () => {
+    clearLastDocument();
   });
 }

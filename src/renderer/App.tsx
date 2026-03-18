@@ -50,6 +50,7 @@ export default function App() {
 
   // Refs
   const textLayerRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const lastFilePathRef = useRef<string | null>(null);
 
   // Check for API key on mount
   useEffect(() => {
@@ -177,14 +178,50 @@ export default function App() {
 
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
+      const viewport = page.getViewport({ scale: 1.0 });
+      const pageHeight = viewport.height;
       const textContent = await page.getTextContent();
 
-      textContent.items.forEach((item, itemIndex) => {
+      // Collect font sizes to determine the main body font size
+      const fontSizes: number[] = [];
+      for (const item of textContent.items) {
+        if ('str' in item && item.str.trim() && 'transform' in item) {
+          fontSizes.push(Math.abs(item.transform[3])); // transform[3] = font height
+        }
+      }
+      // Main body font size = most common font size
+      const fontSizeCount = new Map<number, number>();
+      for (const fs of fontSizes) {
+        const rounded = Math.round(fs * 10) / 10;
+        fontSizeCount.set(rounded, (fontSizeCount.get(rounded) || 0) + 1);
+      }
+      let mainFontSize = 10;
+      let maxCount = 0;
+      for (const [fs, count] of fontSizeCount) {
+        if (count > maxCount) {
+          maxCount = count;
+          mainFontSize = fs;
+        }
+      }
+
+      let itemIndex = 0;
+      textContent.items.forEach((item) => {
         if ('str' in item && item.str) {
+          const idx = itemIndex++;
+          // Filter: skip items in bottom 15% of page with smaller font
+          if ('transform' in item) {
+            const yPos = item.transform[5]; // Y position (from bottom in PDF coords)
+            const fontSize = Math.abs(item.transform[3]);
+            const isFooterRegion = yPos < pageHeight * 0.15;
+            const isSmallerFont = fontSize < mainFontSize * 0.85;
+            if (isFooterRegion && isSmallerFont) {
+              return; // Skip footnotes/footer text
+            }
+          }
           textSpans.push({
             text: item.str,
             pageIndex: i - 1,
-            itemIndex,
+            itemIndex: idx,
           });
         }
       });
@@ -234,6 +271,17 @@ export default function App() {
       setError('Please configure your OpenAI API key in Settings first.');
       setSettingsOpen(true);
       return;
+    }
+
+    // Save file path if available (via Electron's webUtils.getPathForFile)
+    try {
+      const filePath = window.electronAPI.getPathForFile(file);
+      if (filePath) {
+        lastFilePathRef.current = filePath;
+        window.electronAPI.setLastDocument(filePath, 0);
+      }
+    } catch {
+      // File may not have a path (e.g. restored from buffer)
     }
 
     setIsLoading(true);
@@ -305,16 +353,35 @@ export default function App() {
     }
   };
 
+  // Load a file from disk by path
+  const loadFileFromPath = async (filePath: string, restoreSentenceIndex?: number) => {
+    try {
+      const buffer = await window.electronAPI.readFile(filePath);
+      const name = filePath.split(/[/\\]/).pop() || 'document';
+      const file = new File([buffer], name);
+      await handleFileUpload(file);
+      // Save as last document
+      window.electronAPI.setLastDocument(filePath, 0);
+      // Store the path for future saves
+      lastFilePathRef.current = filePath;
+      // Restore sentence position after a short delay to allow rendering
+      if (restoreSentenceIndex && restoreSentenceIndex > 0) {
+        setTimeout(() => {
+          playSentence(restoreSentenceIndex);
+        }, 500);
+      }
+    } catch (err) {
+      console.error('Failed to load file from path:', err);
+    }
+  };
+
   // Handle file dialog
   const handleOpenDialog = async () => {
     try {
       const result = await window.electronAPI.openFileDialog();
       if (!result.canceled && result.filePaths.length > 0) {
         const filePath = result.filePaths[0];
-        const buffer = await window.electronAPI.readFile(filePath);
-        const fileName = filePath.split(/[/\\]/).pop() || 'document';
-        const file = new File([buffer], fileName);
-        handleFileUpload(file);
+        await loadFileFromPath(filePath);
       }
     } catch (err) {
       console.error('File dialog error:', err);
@@ -355,6 +422,8 @@ export default function App() {
     setMarkdownSentences([]);
     setMarkdownBlocks([]);
     setError(null);
+    lastFilePathRef.current = null;
+    window.electronAPI.clearLastDocument();
   }, [resetAudio]);
 
   // Center both views on current position
@@ -394,6 +463,37 @@ export default function App() {
     centerCurrentPosition();
     togglePlayback();
   }, [centerCurrentPosition, togglePlayback]);
+
+  // Restore last document on startup
+  const hasRestoredRef = useRef(false);
+  useEffect(() => {
+    if (!hasApiKey || hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+    (async () => {
+      const last = await window.electronAPI.getLastDocument();
+      if (last?.filePath) {
+        try {
+          const buffer = await window.electronAPI.readFile(last.filePath);
+          const name = last.filePath.split(/[/\\]/).pop() || 'document';
+          const file = new File([buffer], name);
+          lastFilePathRef.current = last.filePath;
+          await handleFileUpload(file);
+          if (last.sentenceIndex > 0) {
+            setTimeout(() => playSentence(last.sentenceIndex), 500);
+          }
+        } catch (err) {
+          console.error('Failed to restore last document:', err);
+          window.electronAPI.clearLastDocument();
+        }
+      }
+    })();
+  }, [hasApiKey]);
+
+  // Periodically save current sentence index
+  useEffect(() => {
+    if (!lastFilePathRef.current) return;
+    window.electronAPI.setLastDocument(lastFilePathRef.current, currentSentenceIndex);
+  }, [currentSentenceIndex]);
 
   // Keyboard navigation
   useEffect(() => {
