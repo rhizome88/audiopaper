@@ -204,10 +204,8 @@ export default function App() {
         }
       }
 
-      let itemIndex = 0;
-      textContent.items.forEach((item) => {
+      textContent.items.forEach((item, originalIndex) => {
         if ('str' in item && item.str) {
-          const idx = itemIndex++;
           // Filter: skip items in bottom 15% of page with smaller font
           if ('transform' in item) {
             const yPos = item.transform[5]; // Y position (from bottom in PDF coords)
@@ -221,7 +219,7 @@ export default function App() {
           textSpans.push({
             text: item.str,
             pageIndex: i - 1,
-            itemIndex: idx,
+            itemIndex: originalIndex, // Must match PDFViewer's forEach index
           });
         }
       });
@@ -393,15 +391,26 @@ export default function App() {
     textLayerRefs.current = refs;
   }, []);
 
-  // Handle PDF text click
+  // Handle PDF text click - find sentence by matching clicked text
   const handlePdfTextClick = useCallback(
-    (pageIndex: number, itemIndex: number) => {
+    (pageIndex: number, itemIndex: number, clickedText?: string) => {
+      // Try text-based matching first (most reliable for PDFs)
+      if (clickedText && clickedText.trim().length > 2) {
+        const needle = clickedText.trim().toLowerCase();
+        for (let i = 0; i < sentences.length; i++) {
+          if (sentences[i].sentence.toLowerCase().includes(needle)) {
+            playSentence(i);
+            return;
+          }
+        }
+      }
+      // Fallback to index-based matching
       const result = findSentenceBySpan(pageIndex, itemIndex);
       if (result.sentenceIndex >= 0) {
         playSentence(result.sentenceIndex);
       }
     },
-    [findSentenceBySpan, playSentence]
+    [sentences, findSentenceBySpan, playSentence]
   );
 
   // Handle split ratio change

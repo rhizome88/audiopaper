@@ -76,23 +76,36 @@ export function useSentenceHighlight({
   // Find sentence index and word index by page and item index
   const findSentenceBySpan = useCallback(
     (pageIndex: number, itemIndex: number): { sentenceIndex: number; wordIndex: number } => {
+      // First try exact match
       for (let i = 0; i < sentences.length; i++) {
         const sentence = sentences[i];
         for (let spanIdx = 0; spanIdx < sentence.spans.length; spanIdx++) {
           const span = sentence.spans[spanIdx];
           if (span.pageIndex === pageIndex && span.itemIndex === itemIndex) {
-            // Estimate word index based on span position within sentence
-            // Each span roughly corresponds to a word or part of the text
             const words = sentence.sentence.split(/\s+/).filter(w => w.length > 0);
             const totalSpans = sentence.spans.length;
             const totalWords = words.length;
-
-            // Estimate word index proportionally
             const wordIndex = Math.round((spanIdx / Math.max(totalSpans - 1, 1)) * (totalWords - 1));
-
             return { sentenceIndex: i, wordIndex: Math.max(0, wordIndex) };
           }
         }
+      }
+      // Fallback: find closest sentence on the same page by item index
+      let bestMatch = -1;
+      let bestDistance = Infinity;
+      for (let i = 0; i < sentences.length; i++) {
+        for (const span of sentences[i].spans) {
+          if (span.pageIndex === pageIndex) {
+            const dist = Math.abs(span.itemIndex - itemIndex);
+            if (dist < bestDistance) {
+              bestDistance = dist;
+              bestMatch = i;
+            }
+          }
+        }
+      }
+      if (bestMatch >= 0) {
+        return { sentenceIndex: bestMatch, wordIndex: 0 };
       }
       return { sentenceIndex: -1, wordIndex: 0 };
     },

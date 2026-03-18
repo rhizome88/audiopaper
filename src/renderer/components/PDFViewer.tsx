@@ -9,7 +9,7 @@ interface PDFViewerProps {
   ocrTextItems?: Map<number, OCRTextItem[]>;
   isOCR?: boolean;
   onTextLayerRefsReady: (refs: Map<number, HTMLDivElement>) => void;
-  onTextClick?: (pageIndex: number, itemIndex: number) => void;
+  onTextClick?: (pageIndex: number, itemIndex: number, clickedText?: string) => void;
 }
 
 export function PDFViewer({
@@ -145,9 +145,10 @@ export function PDFViewer({
 
       const pageIndex = parseInt(target.dataset.pageIndex || '-1', 10);
       const itemIndex = parseInt(target.dataset.itemIndex || '-1', 10);
+      const clickedText = target.textContent || '';
 
       if (pageIndex >= 0 && itemIndex >= 0 && onTextClick) {
-        onTextClick(pageIndex, itemIndex);
+        onTextClick(pageIndex, itemIndex, clickedText);
       }
     },
     [onTextClick]
