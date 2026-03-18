@@ -8,7 +8,7 @@ export interface TextSpan {
 
 export interface SentenceLocation {
   sentence: string;
-  spans: { pageIndex: number; itemIndex: number; startChar: number; endChar: number }[];
+  spans: { pageIndex: number; itemIndex: number; startChar: number; endChar: number; bbox?: { x: number; y: number; width: number; height: number } }[];
 }
 
 export interface OCRTextItem {
@@ -68,6 +68,7 @@ export function extractSentencesWithLocations(textSpans: TextSpan[]): SentenceLo
           itemIndex: span.itemIndex,
           startChar: currentCharInSpan,
           endChar: currentCharInSpan + spanPos,
+          bbox: span.bbox,
         });
 
         currentCharInSpan += spanPos;

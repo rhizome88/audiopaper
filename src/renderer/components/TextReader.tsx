@@ -8,9 +8,7 @@ interface TextReaderProps {
   isPlaying?: boolean;
   onSentenceClick: (index: number) => void;
   onWordClick?: (sentenceIndex: number, wordIndex: number) => void;
-  onScrollNavigate?: (index: number, progress: number) => void;
-  onScrollBoost?: (delta: number) => void;
-  onPause?: () => void;
+  onScroll?: (direction: 'down' | 'up') => void;
 }
 
 export function TextReader({
@@ -20,9 +18,7 @@ export function TextReader({
   isPlaying = false,
   onSentenceClick,
   onWordClick,
-  onScrollNavigate,
-  onScrollBoost,
-  onPause,
+  onScroll,
 }: TextReaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sentenceRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -31,30 +27,20 @@ export function TextReader({
   const zoomIn = () => setFontSize((prev) => Math.min(prev + 2, 32));
   const zoomOut = () => setFontSize((prev) => Math.max(prev - 2, 12));
 
-  // Scroll-reading: scroll starts audio and controls speed
+  // Scroll events: emit up/down to parent
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !onScrollNavigate) return;
+    if (!container || !onScroll) return;
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       e.stopPropagation();
-
-      if (e.deltaY < 0) {
-        if (onPause) onPause();
-        return;
-      }
-
-      onScrollNavigate(currentSentenceIndex, 0);
-
-      if (onScrollBoost) {
-        onScrollBoost(e.deltaY);
-      }
+      onScroll(e.deltaY > 0 ? 'down' : 'up');
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => container.removeEventListener('wheel', handleWheel);
-  }, [currentSentenceIndex, onScrollNavigate, onScrollBoost, onPause]);
+  }, [onScroll]);
 
   // Always center the current sentence
   useEffect(() => {

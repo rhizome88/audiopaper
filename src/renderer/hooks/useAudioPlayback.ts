@@ -226,10 +226,9 @@ export function useAudioPlayback({
     if (!audio) return;
 
     const handleEnded = () => {
+      if (isScrollModeRef.current) return; // Handled by scroll ended handler
       stopWordTracking();
-      const state = playbackStateRef.current;
-      if (state === 'playing' || state === 'scrollReading') {
-        // Will be handled by playSentence for 'playing', or scrollStartReading for 'scrollReading'
+      if (playbackStateRef.current === 'playing') {
         playSentence(currentSentenceIndex + 1);
       }
     };
@@ -423,9 +422,9 @@ export function useAudioPlayback({
   );
 
   // Scroll-reading: simple dedicated audio playback for scroll mode
-  const scrollDecayRef = useRef<NodeJS.Timeout | null>(null);
   const scrollLoadingRef = useRef(false);
   const SCROLL_BASE_SPEED = 1.0;
+  const SCROLL_STEP = 0.05; // 5% per scroll event
 
   // Load and play audio for a sentence in scroll mode
   const scrollPlaySentence = useCallback(
@@ -501,7 +500,13 @@ export function useAudioPlayback({
   const scrollStartReading = useCallback(
     (sentenceIndex: number) => {
       if (playbackStateRef.current === 'playing') return;
-      if (isScrollModeRef.current) return; // Already reading, just boost
+      if (isScrollModeRef.current && sentenceIndex === currentSentenceIndex) return; // Already reading this sentence
+
+      // Stop current playback if switching to a different sentence
+      if (isScrollModeRef.current) {
+        audioRef.current?.pause();
+        stopWordTracking(false);
+      }
 
       isScrollModeRef.current = true;
       scrollSpeedRef.current = SCROLL_BASE_SPEED;
@@ -528,53 +533,51 @@ export function useAudioPlayback({
     [currentSentenceIndex, scrollPlaySentence, startWordTracking]
   );
 
+  // Helper: apply new scroll speed to audio and word tracking
+  const applyScrollSpeed = useCallback((newSpeed: number) => {
+    scrollSpeedRef.current = newSpeed;
+    const audio = audioRef.current;
+    if (!audio || audio.paused) return;
+    audio.playbackRate = newSpeed;
+    stopWordTracking(false);
+    if (audio.duration && isFinite(audio.duration)) {
+      const ratio = audio.currentTime / audio.duration;
+      const remaining = ((audio.duration - audio.currentTime) * 1000) / newSpeed;
+      const sentence = getSentenceTextRef.current(currentSentenceIndex);
+      const words = sentence ? sentence.split(/\s+/).filter(w => w.length > 0) : [];
+      startWordTracking(currentSentenceIndex, Math.floor(ratio * words.length), remaining);
+    }
+  }, [currentSentenceIndex, startWordTracking, stopWordTracking]);
+
+  // Scroll down: +5% speed
   const scrollBoost = useCallback(
-    (delta: number) => {
+    (_delta: number) => {
       if (!isScrollModeRef.current) return;
-      const audio = audioRef.current;
-      if (!audio) return;
-
-      // While scrolling: set speed to 2.5x
-      scrollSpeedRef.current = 2.5;
-      audio.playbackRate = 2.5;
-
-
-      // Restart word tracking with new speed
-      stopWordTracking();
-      if (audio.duration && isFinite(audio.duration)) {
-        const playedRatio = audio.currentTime / audio.duration;
-        const remaining = ((audio.duration - audio.currentTime) * 1000) / scrollSpeedRef.current;
-        const sentence = getSentenceTextRef.current(currentSentenceIndex);
-        const words = sentence ? sentence.split(/\s+/).filter(w => w.length > 0) : [];
-        startWordTracking(currentSentenceIndex, Math.floor(playedRatio * words.length), remaining);
-      }
-
-      // Decay back to base speed after scroll stops
-      if (scrollDecayRef.current) clearTimeout(scrollDecayRef.current);
-      scrollDecayRef.current = setTimeout(() => {
-        if (audioRef.current && isScrollModeRef.current && !audioRef.current.paused) {
-          scrollSpeedRef.current = SCROLL_BASE_SPEED;
-          audioRef.current.playbackRate = SCROLL_BASE_SPEED;
-          stopWordTracking();
-          if (audioRef.current.duration && isFinite(audioRef.current.duration)) {
-            const ratio = audioRef.current.currentTime / audioRef.current.duration;
-            const remaining = ((audioRef.current.duration - audioRef.current.currentTime) * 1000) / SCROLL_BASE_SPEED;
-            const sentence = getSentenceTextRef.current(currentSentenceIndex);
-            const words = sentence ? sentence.split(/\s+/).filter(w => w.length > 0) : [];
-            startWordTracking(currentSentenceIndex, Math.floor(ratio * words.length), remaining);
-          }
-        }
-      }, 200);
+      applyScrollSpeed(Math.min(scrollSpeedRef.current + SCROLL_STEP, 4.0));
     },
-    [currentSentenceIndex, startWordTracking, stopWordTracking]
+    [applyScrollSpeed]
   );
+
+  // Scroll up: -5% speed, pause at base
+  const scrollSlowDown = useCallback(() => {
+    if (!isScrollModeRef.current) return;
+    const newSpeed = scrollSpeedRef.current - SCROLL_STEP;
+    if (newSpeed < SCROLL_BASE_SPEED) {
+      // At or below base: pause
+      isScrollModeRef.current = false;
+      audioRef.current?.pause();
+      stopWordTracking(false);
+      setPlaybackState('idle');
+      return;
+    }
+    applyScrollSpeed(newSpeed);
+  }, [applyScrollSpeed, stopWordTracking]);
 
   const pauseScrollReading = useCallback(() => {
     isScrollModeRef.current = false;
     audioRef.current?.pause();
-    stopWordTracking(false); // Keep wave position
+    stopWordTracking(false);
     setPlaybackState('idle');
-    if (scrollDecayRef.current) clearTimeout(scrollDecayRef.current);
   }, [stopWordTracking]);
 
   return {
@@ -594,7 +597,9 @@ export function useAudioPlayback({
     jumpToSentence,
     scrollStartReading,
     scrollBoost,
+    scrollSlowDown,
     pauseScrollReading,
+    scrollSpeedRef,
     setError,
   };
 }

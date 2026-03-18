@@ -9,6 +9,9 @@ interface HeaderProps {
   scale: number;
   isOCR: boolean;
   isMarkdown: boolean;
+  scrollSpeed: number;
+  isPaused: boolean;
+  onPause: () => void;
   onVoiceChange: (voice: TTSVoice) => void;
   onScaleChange: (scale: number) => void;
   onReset: () => void;
@@ -23,6 +26,9 @@ export function Header({
   scale,
   isOCR,
   isMarkdown,
+  scrollSpeed,
+  isPaused,
+  onPause,
   onVoiceChange,
   onScaleChange,
   onReset,
@@ -36,6 +42,24 @@ export function Header({
 
       {hasDocument && (
         <>
+          {/* Pause button + Speed indicator */}
+          {!isPaused && (
+            <button
+              onClick={onPause}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              {Math.round(scrollSpeed * 100)}%
+            </button>
+          )}
+          {isPaused && (
+            <div className="px-3 py-1.5 text-sm font-medium rounded-lg border bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400">
+              Paused
+            </div>
+          )}
+
           {/* Voice Control */}
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600 dark:text-gray-300">Voice:</label>

@@ -16,7 +16,28 @@
       "Bash(npm run build:renderer:*)",
       "Bash(npx tsc:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAudioPaper Electron: PDF/Markdown TTS Reader\n\nFeatures:\n- Split-screen layout with PDF/Markdown viewer \\(left\\) and text reader \\(right\\)\n- OpenAI TTS integration with voice selection and speed control\n- Smooth animated word highlighting synchronized with audio playback\n- Click-to-play: click any word to start reading from that position\n- Yellow highlight band on PDF, blue gradient wave on text reader\n- Zoom controls for text reader\n- Sentence navigation with keyboard shortcuts\n- API key storage with electron-store\n\nTech stack:\n- Electron + Vite + React 19 + TypeScript\n- PDF.js for PDF rendering\n- Tesseract.js for OCR \\(scanned PDFs\\)\n- Tailwind CSS 4\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git config:*)",
+      "Bash(gh auth status)",
+      "Bash(gh repo create:*)",
+      "Bash(tasklist:*)",
+      "Bash(mkdir -p /Users/retohorat/dev/clipread)",
+      "Read(//Users/retohorat/dev/**)",
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(chmod:*)",
+      "Bash(ls:*)",
+      "Bash(git checkout:*)",
+      "Bash(git fetch:*)",
+      "Bash(grep -r \"OPENAI_API_KEY\\\\|sk-\" /Users/retohorat/dev/clipread/.env*)",
+      "Bash(grep -r \"openai\" /Users/retohorat/dev/clipread/.env*)",
+      "Bash(git rebase:*)",
+      "Bash(git stash:*)",
+      "Bash(npx electron:*)",
+      "Bash(node -e \"require\\(''''/Users/retohorat/dev/audiopaper/dist/renderer/assets/index-D6q-NVoO.js''''\\)\")"
     ]
   }
 }

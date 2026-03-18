@@ -32,7 +32,7 @@ export default function App() {
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [sentences, setSentences] = useState<SentenceLocation[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [scale, setScale] = useState(1.5);
+  const [scale, setScale] = useState(1.0);
   const [isOCR, setIsOCR] = useState(false);
   const [ocrTextItems, setOcrTextItems] = useState<Map<number, OCRTextItem[]>>(new Map());
   const [markdownContent, setMarkdownContent] = useState<string | null>(null);
@@ -109,7 +109,9 @@ export default function App() {
     jumpToSentence,
     scrollStartReading,
     scrollBoost,
+    scrollSlowDown,
     pauseScrollReading,
+    scrollSpeedRef,
   } = useAudioPlayback({
     getSentenceText,
     getTotalSentences,
@@ -220,9 +222,23 @@ export default function App() {
               return; // Skip footnotes/footer text
             }
           }
+          // Store normalized Y position (0=top, 1=bottom) for highlight positioning
+          let bbox: { x: number; y: number; width: number; height: number } | undefined;
+          if ('transform' in item) {
+            const tx = pdfjs.Util.transform(viewport.transform, item.transform);
+            // tx[5] is Y in viewport coords (top-left origin), normalize to 0-1
+            const itemHeight = Math.abs(item.transform[3]) * viewport.scale;
+            bbox = {
+              x: tx[4] / viewport.width,
+              y: (tx[5] - itemHeight) / viewport.height, // top of text
+              width: (item.width || 0) / viewport.width,
+              height: itemHeight / viewport.height,
+            };
+          }
           textSpans.push({
             text: item.str,
             pageIndex: i - 1,
+            bbox,
             itemIndex: originalIndex, // Must match PDFViewer's forEach index
           });
         }
@@ -395,15 +411,21 @@ export default function App() {
     textLayerRefs.current = refs;
   }, []);
 
-  // Handle PDF text click - find sentence by matching clicked text
+  // Handle PDF text click - find sentence and start scroll-reading there
   const handlePdfTextClick = useCallback(
     (pageIndex: number, itemIndex: number, clickedText?: string) => {
+      const startAtSentence = (index: number) => {
+        scrollStartReading(index);
+        setIsPaused(false);
+        setDisplayScrollSpeed(1.0);
+      };
+
       // Try text-based matching first (most reliable for PDFs)
       if (clickedText && clickedText.trim().length > 2) {
         const needle = clickedText.trim().toLowerCase();
         for (let i = 0; i < sentences.length; i++) {
           if (sentences[i].sentence.toLowerCase().includes(needle)) {
-            playSentence(i);
+            startAtSentence(i);
             return;
           }
         }
@@ -411,10 +433,10 @@ export default function App() {
       // Fallback to index-based matching
       const result = findSentenceBySpan(pageIndex, itemIndex);
       if (result.sentenceIndex >= 0) {
-        playSentence(result.sentenceIndex);
+        startAtSentence(result.sentenceIndex);
       }
     },
-    [sentences, findSentenceBySpan, playSentence]
+    [sentences, findSentenceBySpan, scrollStartReading]
   );
 
   // Handle split ratio change
@@ -471,15 +493,60 @@ export default function App() {
     }
   }, [currentSentenceIndex, markdownContent, sentences]);
 
-  // Handle scroll navigation: start scroll-reading
-  const handleScrollNavigate = useCallback((index: number, _progress: number) => {
-    scrollStartReading(index);
-  }, [scrollStartReading]);
+  // Scroll speed for UI display
+  const [displayScrollSpeed, setDisplayScrollSpeed] = useState(1.0);
+  const [isPaused, setIsPaused] = useState(true);
 
-  // Handle scroll speed boost
-  const handleScrollBoost = useCallback((delta: number) => {
-    scrollBoost(delta);
-  }, [scrollBoost]);
+  // Use refs so the scroll handler never goes stale
+  const scrollFnsRef = useRef({ scrollStartReading, scrollBoost, scrollSlowDown, pauseScrollReading, scrollSpeedRef });
+  useEffect(() => {
+    scrollFnsRef.current = { scrollStartReading, scrollBoost, scrollSlowDown, pauseScrollReading, scrollSpeedRef };
+  }, [scrollStartReading, scrollBoost, scrollSlowDown, pauseScrollReading, scrollSpeedRef]);
+
+  const currentSentenceRef = useRef(currentSentenceIndex);
+  useEffect(() => { currentSentenceRef.current = currentSentenceIndex; }, [currentSentenceIndex]);
+
+  const playbackStateRefLocal = useRef(playbackState);
+  useEffect(() => { playbackStateRefLocal.current = playbackState; }, [playbackState]);
+
+  // Stable scroll handler that never changes
+  const handleScroll = useCallback((direction: 'down' | 'up') => {
+    const fns = scrollFnsRef.current;
+    if (direction === 'down') {
+      if (playbackStateRefLocal.current !== 'scrollReading') {
+        fns.scrollStartReading(currentSentenceRef.current);
+        setIsPaused(false);
+        setDisplayScrollSpeed(1.0);
+      } else {
+        fns.scrollBoost(0);
+        setDisplayScrollSpeed(fns.scrollSpeedRef.current);
+      }
+    } else {
+      if (playbackStateRefLocal.current === 'scrollReading') {
+        fns.scrollSlowDown();
+        if (fns.scrollSpeedRef.current <= 1.0) {
+          setIsPaused(true);
+          setDisplayScrollSpeed(1.0);
+        } else {
+          setDisplayScrollSpeed(fns.scrollSpeedRef.current);
+        }
+      }
+    }
+  }, []); // No dependencies — uses refs
+
+  // Stable pause handler
+  const handlePause = useCallback(() => {
+    scrollFnsRef.current.pauseScrollReading();
+    setIsPaused(true);
+    setDisplayScrollSpeed(1.0);
+  }, []);
+
+  // Click on sentence (left PDF or right text panel) → start scroll-reading there
+  const handleSentenceClick = useCallback((index: number) => {
+    scrollFnsRef.current.scrollStartReading(index);
+    setIsPaused(false);
+    setDisplayScrollSpeed(1.0);
+  }, []);
 
   // Toggle playback with centering
   const handleTogglePlayback = useCallback(() => {
@@ -558,6 +625,9 @@ export default function App() {
         scale={scale}
         isOCR={isOCR}
         isMarkdown={!!markdownContent}
+        scrollSpeed={displayScrollSpeed}
+        isPaused={isPaused}
+        onPause={handlePause}
         onVoiceChange={handleVoiceChange}
         onScaleChange={setScale}
         onReset={handleReset}
@@ -616,7 +686,7 @@ export default function App() {
                   sentences={markdownSentences}
                   currentSentenceIndex={currentSentenceIndex}
                   currentWordIndex={currentWordIndex}
-                  onSentenceClick={playSentence}
+                  onSentenceClick={handleSentenceClick}
                 />
               </div>
             ) : null
@@ -628,11 +698,9 @@ export default function App() {
                 currentSentenceIndex={currentSentenceIndex}
                 currentWordIndex={currentWordIndex}
                 isPlaying={playbackState === 'playing' || playbackState === 'scrollReading'}
-                onSentenceClick={playSentence}
-                onWordClick={playSentenceFromWord}
-                onScrollNavigate={handleScrollNavigate}
-                onScrollBoost={handleScrollBoost}
-                onPause={pauseScrollReading}
+                onSentenceClick={handleSentenceClick}
+                onWordClick={(sentenceIdx, _wordIdx) => handleSentenceClick(sentenceIdx)}
+                onScroll={handleScroll}
               />
             ) : markdownContent ? (
               <TextReader
@@ -640,11 +708,9 @@ export default function App() {
                 currentSentenceIndex={currentSentenceIndex}
                 currentWordIndex={currentWordIndex}
                 isPlaying={playbackState === 'playing' || playbackState === 'scrollReading'}
-                onSentenceClick={playSentence}
-                onWordClick={playSentenceFromWord}
-                onScrollNavigate={handleScrollNavigate}
-                onScrollBoost={handleScrollBoost}
-                onPause={pauseScrollReading}
+                onSentenceClick={handleSentenceClick}
+                onWordClick={(sentenceIdx, _wordIdx) => handleSentenceClick(sentenceIdx)}
+                onScroll={handleScroll}
               />
             ) : null
           }
