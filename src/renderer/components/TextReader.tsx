@@ -8,8 +8,9 @@ interface TextReaderProps {
   isPlaying?: boolean;
   onSentenceClick: (index: number) => void;
   onWordClick?: (sentenceIndex: number, wordIndex: number) => void;
-  onTogglePlayback?: () => void;
   onScrollNavigate?: (index: number, progress: number) => void;
+  onScrollBoost?: (delta: number) => void;
+  onPause?: () => void;
 }
 
 export function TextReader({
@@ -19,66 +20,41 @@ export function TextReader({
   isPlaying = false,
   onSentenceClick,
   onWordClick,
-  onTogglePlayback,
   onScrollNavigate,
+  onScrollBoost,
+  onPause,
 }: TextReaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sentenceRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [fontSize, setFontSize] = useState(18);
-  const scrollProgressRef = useRef(0);
 
   const zoomIn = () => setFontSize((prev) => Math.min(prev + 2, 32));
   const zoomOut = () => setFontSize((prev) => Math.max(prev - 2, 12));
 
-  // Scroll-to-navigate: wheel events drive wave progress across sentences
+  // Scroll-reading: scroll starts audio and controls speed
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !onScrollNavigate || isPlaying) return;
+    if (!container || !onScrollNavigate) return;
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
+      e.stopPropagation();
 
-      // Map scroll delta to progress change (tune sensitivity here)
-      const sensitivity = 0.3; // % progress per pixel of scroll
-      const delta = e.deltaY * sensitivity;
+      if (e.deltaY < 0) {
+        if (onPause) onPause();
+        return;
+      }
 
-      scrollProgressRef.current += delta;
+      onScrollNavigate(currentSentenceIndex, 0);
 
-      if (scrollProgressRef.current > 100) {
-        // Move to next sentence
-        const nextIdx = Math.min(sentences.length - 1, currentSentenceIndex + 1);
-        if (nextIdx !== currentSentenceIndex) {
-          scrollProgressRef.current = 0;
-          onScrollNavigate(nextIdx, 0);
-        } else {
-          scrollProgressRef.current = 100;
-          onScrollNavigate(currentSentenceIndex, 100);
-        }
-      } else if (scrollProgressRef.current < 0) {
-        // Move to previous sentence
-        const prevIdx = Math.max(0, currentSentenceIndex - 1);
-        if (prevIdx !== currentSentenceIndex) {
-          scrollProgressRef.current = 100;
-          onScrollNavigate(prevIdx, 100);
-        } else {
-          scrollProgressRef.current = 0;
-          onScrollNavigate(currentSentenceIndex, 0);
-        }
-      } else {
-        onScrollNavigate(currentSentenceIndex, scrollProgressRef.current);
+      if (onScrollBoost) {
+        onScrollBoost(e.deltaY);
       }
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => container.removeEventListener('wheel', handleWheel);
-  }, [sentences.length, currentSentenceIndex, isPlaying, onScrollNavigate]);
-
-  // Reset scroll progress when sentence changes externally (e.g. from audio)
-  useEffect(() => {
-    if (isPlaying) {
-      scrollProgressRef.current = currentWordIndex;
-    }
-  }, [currentSentenceIndex, isPlaying, currentWordIndex]);
+  }, [currentSentenceIndex, onScrollNavigate, onScrollBoost, onPause]);
 
   // Always center the current sentence
   useEffect(() => {
@@ -156,7 +132,7 @@ export function TextReader({
   };
 
   return (
-    <div ref={containerRef} className="text-reader overflow-hidden h-full relative">
+    <div ref={containerRef} className="text-reader overflow-auto h-full relative">
       {/* Zoom controls */}
       <div className="sticky top-0 right-0 z-10 flex justify-end p-2 bg-gradient-to-b from-white dark:from-gray-800 to-transparent">
         <div className="flex items-center gap-1 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 px-2 py-1">
@@ -207,26 +183,6 @@ export function TextReader({
                 </span>
                 {renderSentenceWithClickableWords(sentenceText, index)}
               </div>
-              {isCurrentSentence && onTogglePlayback && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTogglePlayback();
-                  }}
-                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors"
-                  title={isPlaying ? 'Pause' : 'Play'}
-                >
-                  {isPlaying ? (
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  )}
-                </button>
-              )}
             </div>
           );
         })}

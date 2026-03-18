@@ -107,6 +107,9 @@ export default function App() {
     playSentence,
     playSentenceFromWord,
     jumpToSentence,
+    scrollStartReading,
+    scrollBoost,
+    pauseScrollReading,
   } = useAudioPlayback({
     getSentenceText,
     getTotalSentences,
@@ -468,13 +471,15 @@ export default function App() {
     }
   }, [currentSentenceIndex, markdownContent, sentences]);
 
-  // Handle scroll navigation: update sentence index and wave progress
-  const handleScrollNavigate = useCallback((index: number, progress: number) => {
-    if (playbackState !== 'playing') {
-      jumpToSentence(index);
-      setCurrentWordIndex(progress);
-    }
-  }, [playbackState, jumpToSentence]);
+  // Handle scroll navigation: start scroll-reading
+  const handleScrollNavigate = useCallback((index: number, _progress: number) => {
+    scrollStartReading(index);
+  }, [scrollStartReading]);
+
+  // Handle scroll speed boost
+  const handleScrollBoost = useCallback((delta: number) => {
+    scrollBoost(delta);
+  }, [scrollBoost]);
 
   // Toggle playback with centering
   const handleTogglePlayback = useCallback(() => {
@@ -547,18 +552,12 @@ export default function App() {
     <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       <Header
         fileName={fileName}
-        playbackState={playbackState}
         currentSentenceIndex={currentSentenceIndex}
         totalSentences={getTotalSentences()}
-        speed={speed}
         voice={voice}
         scale={scale}
         isOCR={isOCR}
         isMarkdown={!!markdownContent}
-        onTogglePlayback={handleTogglePlayback}
-        onPreviousSentence={previousSentence}
-        onNextSentence={nextSentence}
-        onSpeedChange={handleSpeedChange}
         onVoiceChange={handleVoiceChange}
         onScaleChange={setScale}
         onReset={handleReset}
@@ -628,22 +627,24 @@ export default function App() {
                 sentences={sentences}
                 currentSentenceIndex={currentSentenceIndex}
                 currentWordIndex={currentWordIndex}
-                isPlaying={playbackState === 'playing'}
+                isPlaying={playbackState === 'playing' || playbackState === 'scrollReading'}
                 onSentenceClick={playSentence}
                 onWordClick={playSentenceFromWord}
-                onTogglePlayback={handleTogglePlayback}
                 onScrollNavigate={handleScrollNavigate}
+                onScrollBoost={handleScrollBoost}
+                onPause={pauseScrollReading}
               />
             ) : markdownContent ? (
               <TextReader
                 sentences={markdownSentences.map((s) => ({ sentence: s, spans: [] }))}
                 currentSentenceIndex={currentSentenceIndex}
                 currentWordIndex={currentWordIndex}
-                isPlaying={playbackState === 'playing'}
+                isPlaying={playbackState === 'playing' || playbackState === 'scrollReading'}
                 onSentenceClick={playSentence}
                 onWordClick={playSentenceFromWord}
-                onTogglePlayback={handleTogglePlayback}
                 onScrollNavigate={handleScrollNavigate}
+                onScrollBoost={handleScrollBoost}
+                onPause={pauseScrollReading}
               />
             ) : null
           }
