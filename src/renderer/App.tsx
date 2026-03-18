@@ -106,6 +106,7 @@ export default function App() {
     reset: resetAudio,
     playSentence,
     playSentenceFromWord,
+    jumpToSentence,
   } = useAudioPlayback({
     getSentenceText,
     getTotalSentences,
@@ -467,6 +468,14 @@ export default function App() {
     }
   }, [currentSentenceIndex, markdownContent, sentences]);
 
+  // Handle scroll navigation: update sentence index and wave progress
+  const handleScrollNavigate = useCallback((index: number, progress: number) => {
+    if (playbackState !== 'playing') {
+      jumpToSentence(index);
+      setCurrentWordIndex(progress);
+    }
+  }, [playbackState, jumpToSentence]);
+
   // Toggle playback with centering
   const handleTogglePlayback = useCallback(() => {
     centerCurrentPosition();
@@ -623,6 +632,7 @@ export default function App() {
                 onSentenceClick={playSentence}
                 onWordClick={playSentenceFromWord}
                 onTogglePlayback={handleTogglePlayback}
+                onScrollNavigate={handleScrollNavigate}
               />
             ) : markdownContent ? (
               <TextReader
@@ -633,6 +643,7 @@ export default function App() {
                 onSentenceClick={playSentence}
                 onWordClick={playSentenceFromWord}
                 onTogglePlayback={handleTogglePlayback}
+                onScrollNavigate={handleScrollNavigate}
               />
             ) : null
           }
