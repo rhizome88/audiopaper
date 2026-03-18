@@ -8,7 +8,8 @@ interface TextReaderProps {
   isPlaying?: boolean;
   onSentenceClick: (index: number) => void;
   onWordClick?: (sentenceIndex: number, wordIndex: number) => void;
-  onScroll?: (direction: 'down' | 'up') => void;
+  onScroll?: (direction: 'down' | 'up' | 'middle') => void;
+  onPause?: () => void;
 }
 
 export function TextReader({
@@ -19,6 +20,7 @@ export function TextReader({
   onSentenceClick,
   onWordClick,
   onScroll,
+  onPause,
 }: TextReaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sentenceRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -38,9 +40,21 @@ export function TextReader({
       onScroll(e.deltaY > 0 ? 'down' : 'up');
     };
 
+    // Middle mouse button (scroll wheel click) = toggle pause/resume
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 1) {
+        e.preventDefault();
+        if (onScroll) onScroll('middle');
+      }
+    };
+
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, [onScroll]);
+    container.addEventListener('mousedown', handleMouseDown);
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('mousedown', handleMouseDown);
+    };
+  }, [onScroll, onPause]);
 
   // Always center the current sentence
   useEffect(() => {

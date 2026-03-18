@@ -12,18 +12,43 @@ export function useSentenceHighlight({
   currentSentenceIndex,
   textLayerRefs,
 }: UseSentenceHighlightOptions) {
-  // Scroll PDF to the correct page when sentence changes
+  // Scroll PDF to show the current sentence approximately centered
   useEffect(() => {
     if (currentSentenceIndex < 0 || currentSentenceIndex >= sentences.length) return;
     const sentence = sentences[currentSentenceIndex];
-    if (sentence.spans.length === 0) return;
 
-    const pageIndex = sentence.spans[0].pageIndex;
-    const textLayerDiv = textLayerRefs.current.get(pageIndex);
-    if (textLayerDiv) {
-      textLayerDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Search page by page: concatenate text items per page, find which page contains the sentence
+    const textLayers = document.querySelectorAll('.text-layer');
+    const sentenceLower = sentence.sentence.toLowerCase();
+    // Use a distinctive chunk (skip first word which is often common)
+    const words = sentenceLower.split(/\s+/);
+    const searchPhrase = words.slice(1, 6).join(' ');
+    if (searchPhrase.length < 5) return;
+
+    for (let p = 0; p < textLayers.length; p++) {
+      const items = textLayers[p].querySelectorAll('.pdf-text-item');
+      // Build page text from items
+      let pageText = '';
+      for (let i = 0; i < items.length; i++) {
+        pageText += (items[i].textContent || '') + ' ';
+      }
+      const pageTextLower = pageText.toLowerCase();
+
+      if (pageTextLower.includes(searchPhrase)) {
+        // Found the page — now find the closest item to scroll to
+        for (let i = 0; i < items.length; i++) {
+          const itemText = (items[i].textContent || '').trim().toLowerCase();
+          if (itemText.length > 3 && searchPhrase.includes(itemText)) {
+            items[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+          }
+        }
+        // Fallback: scroll to page center
+        textLayers[p].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
     }
-  }, [currentSentenceIndex, sentences, textLayerRefs]);
+  }, [currentSentenceIndex, sentences]);
 
   // Find sentence index by page and item index
   const findSentenceBySpan = useCallback(

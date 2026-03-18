@@ -408,7 +408,9 @@ export default function App() {
 
   // Handle text layer refs from PDF viewer
   const handleTextLayerRefsReady = useCallback((refs: Map<number, HTMLDivElement>) => {
-    textLayerRefs.current = refs;
+    // Copy entries instead of replacing reference, so highlight hook always sees latest
+    textLayerRefs.current.clear();
+    refs.forEach((el, key) => textLayerRefs.current.set(key, el));
   }, []);
 
   // Handle PDF text click - find sentence and start scroll-reading there
@@ -509,9 +511,30 @@ export default function App() {
   const playbackStateRefLocal = useRef(playbackState);
   useEffect(() => { playbackStateRefLocal.current = playbackState; }, [playbackState]);
 
+  // Remember speed when pausing so we can resume at same speed
+  const pausedSpeedRef = useRef(1.0);
+
   // Stable scroll handler that never changes
-  const handleScroll = useCallback((direction: 'down' | 'up') => {
+  const handleScroll = useCallback((direction: 'down' | 'up' | 'middle') => {
     const fns = scrollFnsRef.current;
+
+    if (direction === 'middle') {
+      // Toggle pause/resume
+      if (playbackStateRefLocal.current === 'scrollReading') {
+        // Pause — remember current speed
+        pausedSpeedRef.current = fns.scrollSpeedRef.current;
+        fns.pauseScrollReading();
+        setIsPaused(true);
+      } else {
+        // Resume at previous speed
+        fns.scrollSpeedRef.current = pausedSpeedRef.current;
+        fns.scrollStartReading(currentSentenceRef.current);
+        setIsPaused(false);
+        setDisplayScrollSpeed(pausedSpeedRef.current);
+      }
+      return;
+    }
+
     if (direction === 'down') {
       if (playbackStateRefLocal.current !== 'scrollReading') {
         fns.scrollStartReading(currentSentenceRef.current);
@@ -525,6 +548,7 @@ export default function App() {
       if (playbackStateRefLocal.current === 'scrollReading') {
         fns.scrollSlowDown();
         if (fns.scrollSpeedRef.current <= 1.0) {
+          pausedSpeedRef.current = 1.0;
           setIsPaused(true);
           setDisplayScrollSpeed(1.0);
         } else {
@@ -543,7 +567,11 @@ export default function App() {
 
   // Click on sentence (left PDF or right text panel) → start scroll-reading there
   const handleSentenceClick = useCallback((index: number) => {
-    scrollFnsRef.current.scrollStartReading(index);
+    const fns = scrollFnsRef.current;
+    // Force restart even if same sentence — stop first, then start fresh
+    fns.pauseScrollReading();
+    fns.scrollSpeedRef.current = 1.0;
+    fns.scrollStartReading(index);
     setIsPaused(false);
     setDisplayScrollSpeed(1.0);
   }, []);
@@ -701,6 +729,7 @@ export default function App() {
                 onSentenceClick={handleSentenceClick}
                 onWordClick={(sentenceIdx, _wordIdx) => handleSentenceClick(sentenceIdx)}
                 onScroll={handleScroll}
+                onPause={handlePause}
               />
             ) : markdownContent ? (
               <TextReader
@@ -711,6 +740,7 @@ export default function App() {
                 onSentenceClick={handleSentenceClick}
                 onWordClick={(sentenceIdx, _wordIdx) => handleSentenceClick(sentenceIdx)}
                 onScroll={handleScroll}
+                onPause={handlePause}
               />
             ) : null
           }

@@ -509,17 +509,20 @@ export function useAudioPlayback({
       }
 
       isScrollModeRef.current = true;
-      scrollSpeedRef.current = SCROLL_BASE_SPEED;
+      // Only reset speed if not already set (e.g. from resume)
+      if (scrollSpeedRef.current < SCROLL_BASE_SPEED) {
+        scrollSpeedRef.current = SCROLL_BASE_SPEED;
+      }
 
       const audio = audioRef.current;
       // Resume if we have audio paused at the same sentence
       if (audio && audio.src && !audio.ended && audio.paused && sentenceIndex === currentSentenceIndex) {
-        audio.playbackRate = SCROLL_BASE_SPEED;
+        audio.playbackRate = scrollSpeedRef.current;
         audio.play().then(() => {
           setPlaybackState('scrollReading');
           if (audio.duration && isFinite(audio.duration)) {
             const ratio = audio.currentTime / audio.duration;
-            const remaining = ((audio.duration - audio.currentTime) * 1000) / SCROLL_BASE_SPEED;
+            const remaining = ((audio.duration - audio.currentTime) * 1000) / scrollSpeedRef.current;
             const sentence = getSentenceTextRef.current(sentenceIndex);
             const words = sentence ? sentence.split(/\s+/).filter(w => w.length > 0) : [];
             startWordTracking(sentenceIndex, Math.floor(ratio * words.length), remaining);
